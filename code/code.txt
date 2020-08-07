@@ -1,0 +1,643 @@
+2016 Secondary Analysis Of Electronic Health Records Code
+
+
+1.  SQL Code
+
+-- 109p
+
+SELECT subject_id FROM mimic.dbo.patients WHERE gender='f';
+
+
+-- 110p
+
+SELECT subject_id FROM icustays WHERE first_careunit='CCU' OR last_careunit='CCU';
+
+SELECT DISTINCT subject_id FROM icustays WHERE first_careunit='CCU' OR last_careunit='CCU';
+
+SELECT count(DISTINCT subject_id) FROM icustays;
+
+
+-- p111
+
+SELECT count(DISTINCT subject_id) FROM icustays WHERE first_careunit='CCU' or last_careunit='CCU';
+
+SELECT * FROM icustays;
+
+SELECT subject_id, hadm_id, icustay_id FROM icustays ORDER BY subject_id ASC;
+
+
+-- p112
+SELECT p.subject_id
+FROM patients p
+INNER JOIN icustays i
+ON p.subject_id = i.subject_id
+WHERE (i.first_careunit='CCU' OR i.last_careunit='CCU')
+ORDER BY subject_id ASC;
+
+
+
+--p113 top
+
+SELECT subject_id, icustay_id, intime,
+   rank() OVER (PARTITION BY subject_id ORDER BY intime ASC)
+   FROM icustays;
+
+
+-- p113 bottom
+WITH rankedstays AS(
+   SELECT subject_id, icustay_id, intime,
+       RANK() OVER (PARTITION BY subject_id ORDER BY intime ASC) AS rank
+   FROM icustays
+)
+SELECT r.subject_id, r.icustay_id, r.intime, r.rank
+FROM rankedstays r
+INNER JOIN patients p
+ON r.subject_id = p.subject_id
+WHERE r.rank = 1;
+
+
+-- p130
+WITH pop
+AS(
+   SELECT subject_id, hadm_id, gender, dob, icustay_admit_age,
+       icustay_intime, icustay_outtime, dod, expire_flg
+   FROM icustay_detail
+   WHERE subject_icustay_seq = 1
+   AND icustay_age_group = 'adult'
+   AND hadm_id IS NOT NULL
+), demo
+AS(
+   SELECT subject_id, hadm_id, marital_status_descr, ethnicity_descr
+   FROM demographic_detail
+   WHERE subject_id IN (SELECT subject_id FROM pop)
+)SELECT * FROM demo;
+
+
+-- p133
+
+SELECT *
+FROM mimic.dbo.comorbidity_scores
+WHERE subject_id IN (SELECT subject_id
+   FROM icustay_detail
+   WHERE subject_icustay_seq = 1
+   AND icustay_age_group = 'adult'
+   AND hadm_id IS NOT NULL);
+
+
+-- p137
+
+SELECT subject_id, valuenum
+FROM mimic.dbo.CHARTEVENTS
+WHERE subject_id IN(
+   SELECT subject_id
+       FROM mimic.dbo.icustay_detail
+           WHERE subject_icustay_seq = 1
+           AND icustay_age_group='adult'
+           AND hadm_id IS NOT null)
+AND itemid=456
+AND valuenum IS NOT NULL;
+
+
+
+ 
+
+2.  R Code
+
+
+# page 122 
+setwd("/Users/Desktop/Rcode")
+list.files()
+# file path는 사용 환경에 따라 각자 맞춰주어야 함
+
+
+demo <- read.csv("demographics.csv")
+
+
+# page 123
+
+head(demo, 2)
+
+tail(demo)
+
+summary(demo)
+
+
+# page 124
+
+str(demo)
+
+
+class(demo)
+
+
+
+nrow(demo)
+
+ncol(demo)
+
+dim(demo)
+
+
+x <- c(1:10)
+class(x)
+
+
+# page 125
+
+subject_id <- c(1:6)
+
+gender <- as.factor(c("F", "F", "M", "F", "M", "M"))
+height <- c(1.52, 1.65, 1.75, 1.72, 1.85, 1.78)
+weight <- c(56.7, 99.6, 90.4, 85.3, 71.4, 130.5)
+data <- data.frame(subject_id, gender, height, weight)
+
+head(data, 4)
+str(data)
+
+
+# page 126
+
+w1 <- data$weight; w1
+w2 <- data[, 4]; w2
+
+dat_sub <- data[2:4, 1:3]; dat_sub
+
+h_w1 <- data[, c(3,4)]; h_w1
+h_w2 <- data[, c('height', 'weight')]; h_w2
+
+
+# page 127
+
+data$BMI <- data$weight/data$height^2
+head(data, 4)
+
+data$obese <- data$BMI < 30
+head(data)
+
+ob <- data$BMI > 30
+data_ob <- data[ob, ]; data_ob
+
+
+# 128  not exist files for example code
+# df1과 df2는 임의로 만든 데이터로, 책의 예시코드와 차이가 있음
+
+df1<-data.frame(name = c('Yoon', 'Seo', 'Park', 'Lee', 'Kim', 'Kang'),
+                age = c(30, 31, 22, 24, 28, 25))
+
+df2<-data.frame(name = c('Park', 'Lee', 'Kim', 'Kang', 'Ahn', 'Go'),
+                gender=c('f', 'f', 'm', 'm', 'f', 'm'),
+                city = c('Seoul', 'Incheon', 'Seoul', 
+                         'Busan', 'Gwangju', 'Deagu'))
+
+df_merged <- merge(df1, df2, by='name')
+df_merged
+
+df_merged <- merge(df1, df2, by = c('name'))
+df_merged
+
+df1<-data.frame(id = c('1','2','3','4'),
+                gender = c('f','m','f','m'))
+
+df2<-data.frame(id = c('5','6','7','8'),
+                gender = c('m','m','f','f'))
+
+df_total <- cbind(df1, df2)
+df_total
+
+df_total <- rbind(df1, df2)
+df_total
+
+# page 129
+# 예시 code로, 실제로 돌아가지는 않음. 
+
+install.packages('name_of_package_case_sensitive')
+
+library(name_of_package_case_sensitive)
+
+?head
+
+# page 131
+setwd('/Users/Desktop/MIMIC_data_files')
+# file path는 사용 환경에 따라 각자 맞춰주어야 함
+
+
+demo <- read.csv('demographics.csv', sep=',')
+pop <- read.csv('population.csv', sep=',')
+
+head(demo)
+
+head(pop)
+
+
+# page 132
+
+demopop <- merge(pop, demo, by = c('subject_id', 'hadm_id'))
+
+head(demopop)
+
+
+# page 133
+setwd('/Users/Desktop/MIMIC_data_files')
+# file path는 사용 환경에 따라 각자 맞춰주어야 함
+
+
+c_scores <- read.csv("comorbidity_scores.csv", sep = ",")
+
+str(c_scores)
+
+
+# page 134
+
+c_scores <- cbind(c_scores, rep(0, nrow(c_scores)))
+
+colnames(c_scores)[ncol(c_scores)] <- "ELIXHAUSER_overall"
+
+str(c_scores)
+
+for (i in 1:nrow(c_scores)) {
+  c_scores[i, "ELIXHAUSER_overall"] <- sum(c_scores[i,4:6]) 
+  }
+
+head(c_scores[, c(1, 6)])
+
+
+# page 135
+
+max_score <- max(c_scores[, 'ELIXHAUSER_overall'])
+c_scores[,'ELIXHAUSER_overall'] <- c_scores[, 'ELIXHAUSER_overall'] / max_score
+
+c_scores <- c_scores[, c("subject_id", "hadm_id", "ELIXHAUSER_overall")]
+head(c_scores)
+
+
+# page 136
+
+sicker <- which(c_scores[, 'ELIXHAUSER_overall'] >= 0.5)
+c_score_sicker <- c_scores[sicker, ]
+head(c_score_sicker)
+
+write.table(c_score_sicker, file='c_score_sicker.csv', sep=';', row.names = F, col.names = F)
+
+
+# page 137
+setwd('/Users/Desktop/MIMIC_data_files')
+# file path는 사용 환경에 따라 각자 맞춰주어야 함
+
+
+all_maps <- read.csv("mean_arterial_pressure.csv", sep = ",")
+str(all_maps)
+
+avg_maps <- aggregate(all_maps, by=list(all_maps[,1]), FUN=mean, na.rm=TRUE)
+
+head(avg_maps)
+
+
+# page 138
+
+diag <- data.frame(subject_id = 1:6, diagnosis = c('PNA, CHF', 'DNA', 'DKA, UTI', 'AF, CHF', 'AF', 'CHF'))
+diag
+
+install.packages('splitstackshape')
+library(splitstackshape)
+
+
+
+# page 139
+
+diag2 <- cSplit(diag,'diagnosis', ',')
+diag2
+
+diag3 <- cSplit(diag, 'diagnosis', ',', direction = 'long')
+diag3
+
+install.packages('tidyr')
+library(tidyr)
+
+
+# page 140
+
+diag3$yes <- rep(1, nrow(diag3))
+diag3
+
+diag4 <- spread(diag3, diagnosis, yes, fill=0)
+diag4
+
+
+# page 209
+# 원문 책의 url은 현재 작동하지 않음. 아래와 같이 파일을 직접 읽어야 함
+# 파일은 아래 링크에서 다운로드 가능
+# https://github.com/CMI-Laboratory/Secondary-analysis-of-EHR-Korean
+
+dat <- read.csv('/Users/ /Desktop/MIMIC_data_files/full_cohort_data.csv')
+# file path는 사용 환경에 따라 각자 맞춰주어야 함
+names(dat)
+
+
+# page 210
+
+plot(dat$pco2_first, dat$tco2_first, xlab="PCO2", ylab="TOC2", pch=10, xlim=c(0,175))
+
+
+# page 211
+
+co2.lm <- lm(tco2_first ~ pco2_first, data=dat)
+
+
+# page 212
+
+summary(co2.lm)
+
+
+# page 214
+
+co2.quad.lm <- lm(tco2_first ~ pco2_first + I(pco2_first^2), data=dat)
+summary(co2.quad.lm)$coef
+
+abline(co2.lm, col='red')
+abline(co2.quad.lm, col='blue')
+
+
+# page 216
+
+class(dat$gender_num)
+
+dat$gender_num <- as.factor(dat$gender_num)
+
+class(dat$gender_num)
+
+
+# page 217
+
+co2.gender.lm <- lm(tco2_first ~ pco2_first + gender_num, data=dat)
+summary(co2.gender.lm)$coef
+
+# plot에서 type='n'이 없으면 좌표를 보여주고, 있으면 좌표를 생략하는 코드입니다. 
+plot(dat$pco2_first, dat$tco2_first, col=dat$gender_num, xlab="PCO2", ylab="TCO2", xlim=c(0, 40), type="n", ylim=c(15,25))
+
+abline(a = c(coef(co2.gender.lm)[1]), b=coef(co2.gender.lm)[2])
+abline(a=coef(co2.gender.lm)[1] + coef(co2.gender.lm)[3], b=coef(co2.gender.lm)[2], col='red')
+
+co2.gender.interaction.lm <- lm(tco2_first ~ pco2_first * gender_num, data=dat)
+summary(co2.gender.interaction.lm)$coef
+
+
+# page 218
+
+abline(a = coef(co2.gender.interaction.lm), b=coef(co2.gender.interaction.lm)[2], lty=3, lwd=2)
+abline(a = coef(co2.gender.interaction.lm)[1] + coef(co2.gender.interaction.lm)[3], b = coef(co2.gender.interaction.lm)[2] + coef(co2.gender.interaction.lm)[4], col='red', lty=3, lwd=2)
+
+legend(24, 20, lty=c(1,1,3,3), lwd=c(1,1,2,2), col=c("black", "red", "black", "red"), c("Female", "Male", "Female (Interaction Model)", "Male (Interaction Model"))
+
+
+# page 219
+
+anova(co2.lm, co2.gender.interaction.lm)
+
+
+# page 221
+
+confint(co2.lm)
+
+
+# page 222
+
+grid.pred <- data.frame(pco2_first=seq.int(from=min(dat$pco2_first, na.rm=T), to=max(dat$pco2_first, na.rm=T)))
+
+preds <- predict(co2.lm, newdata=grid.pred, interval='prediction')
+preds[1:2,]
+
+
+# page 223
+
+plot(dat$pco2_first, dat$tco2_first, xlab='PCO2', ylab='TCO2', pch=19, xlim=c(0,175))
+co2.lm <- lm(tco2_first ~ pco2_first, data=dat)
+abline(co2.lm, col='red', lwd=2)
+lines(grid.pred$pco2_first, preds[,2], lty=3)
+lines(grid.pred$pco2_first, preds[,3], lty=3)        
+
+
+# page 225
+
+dat$age.cat <- as.factor(ifelse(dat$age <= 55, "<=55", ">55"))
+table(dat$age.cat)
+
+
+# page 226
+
+table(dat$age.cat, dat$day_28_flg)
+
+deathbyservice <- table(dat$service_unit, dat$day_28_flg)
+deathbyservice
+
+
+# page 227
+
+dbys.proptable <- prop.table(deathbyservice, 1)
+dbys.proptable
+
+dbys.proptable[, "1"]/dbys.proptable[,"0"]
+
+
+# page 229
+
+age.glm <- glm(day_28_flg ~ age.cat, data=dat, family="binomial")
+summary(age.glm)
+
+
+# page 230
+
+ageunit.glm <- glm(day_28_flg ~ age.cat + service_unit, data=dat, family='binomial')
+summary(ageunit.glm)$coef
+
+
+
+
+
+# page 231
+
+agects.glm <- glm(day_28_flg ~ age, data=dat, family='binomial')
+summary(agects.glm)$coef
+
+
+# page 232
+
+anova(age.glm, ageunit.glm, test='Chisq')
+
+
+# page 234
+
+ageunit.glm$coef
+
+confint(ageunit.glm)
+
+exp(ageunit.glm$coef[-1])
+
+exp(confint(ageunit.glm)[-1,])
+
+
+# page 235
+
+newdat <- expand.grid(age.cat=c('<=55', '>55'), service_unit=c('FICU', 'MICU', 'SICU'))
+newdat$pred <- predict(ageunit.glm, newdata=newdat, type='response')
+newdat
+
+
+# page 238
+
+library(survival);
+
+dat$mort_day_censored[dat$censor_flg==1] <- 731
+
+
+# page 239
+
+datSurv <- Surv(dat$mort_day_censored, dat$censor_flg==0)
+datSurv[101:105]
+
+gender.surv <- survfit(datSurv ~ gender_num, data=dat)
+plot(gender.surv, col=1:2, conf.int = TRUE, xlab='Days', ylab='Proportion Who Survived')
+legend(400, 0.4, col=c('black', 'red'), lty=1, c('Women', 'Men'))
+
+unit.surv <- survfit(datSurv ~ service_unit, data=dat)
+plot(unit.surv, col=1:3, conf.int = FALSE, xlab='Days', ylab='Proportion Who survived')
+legend(400, 0.4, col=c('black', 'red', 'green'), lty=1, c('FICU', 'MUCI', 'SICU'))
+
+
+
+# page 242
+
+gender.coxph <- coxph(datSurv ~ gender_num, data=dat)
+summary(gender.coxph)
+
+genderafib.coxph <- coxph(datSurv ~ gender_num + afib_flg, data=dat)
+summary(genderafib.coxph)$coef
+
+
+# page 243
+
+anova(gender.coxph, genderafib.coxph)
+
+
+# page 245
+
+install.packages('devtools')
+library(devtools)
+
+install_github('jraffa/MIMICbook')
+library(MIMICbook)
+
+rm(dat)
+
+# 원문 책의 url은 현재 작동하지 않음. 아래와 같이 파일을 직접 읽어야 함
+# 파일은 아래 링크에서 다운로드 가능
+# https://github.com/CMI-Laboratory/Secondary-analysis-of-EHR-Korean
+dat <- read.csv('/Users/Desktop/MIMIC_data_files/full_cohort_data.csv')
+# file path는 사용 환경에 따라 각자 맞춰주어야 함
+
+
+# page 246
+
+bincols <- colMeans((dat == 1 | dat == 0), na.rm = T) == 1
+for (i in 1:length(bincols)) {
+  if (bincols[i]) {
+    dat[[i]] <- as.factor(dat[[i]])
+  }
+}
+
+tab1 <- produce.table1(dat)
+library(knitr)
+kable(tab1, caption='Overall patient characteristics')
+
+
+# page 248
+
+datby.aline <- split(dat, dat$aline_flg)
+reftable <- produce.table1(datby.aline[[1]])
+tab2 <- cbind(produce.table1(datby.aline[[1]], labels=attr(reftable, 'labels')),
+              produce.table1(datby.aline[[2]], labels=attr(reftable, 'labels')))
+colnames(tab2) <- paste0('Average (SD), or N (%)', c(", No-IAC", ", IAC"))
+kable(tab2, caption = 'Patient characteristics startified by IAC administration')
+
+
+# page 250
+
+datby.28daymort <- split(dat, dat$day_28_flg)
+reftablemort <- produce.table1(datby.28daymort[[1]])
+tab3 <- cbind(produce.table1(datby.28daymort[[1]], labels=attr(reftablemort, 'labels')), produce.table1(datby.28daymort[[2]], labels=attr(reftablemort, 'labels')))
+colnames(tab3) <- paste0('Average (SD), or N (%)', c(',Alive', ',Dead'))
+kable(tab3, caption = "patient characteristic stratified by 28 day mortality")
+
+
+# page 252
+
+urv.glm <- glm(day_28_flg ~ aline_flg,data=dat, family='binomial')
+exp(urv.glm$coef[-1])
+
+exp(confint(urv.glm)[-1,])
+
+
+# page 254
+
+install.packages('Hmisc') # 패키지 설치 필요 시에만
+library(Hmisc)
+table(cut2(dat$sofa_first, g=5))
+
+
+# page 255
+
+mva.full.glm <- glm(day_28_flg ~ aline_flg + age + gender_num + cut2(sapsi_first,
+                    g=5) + cut2(sofa_first, g=5) + service_unit + chf_flg + afib_flg + renal_flg +
+                      liver_flg + copd_flg + cad_flg + stroke_flg + mal_flg + resp_flg, data=dat,
+                    family='binomial')
+summary(mva.full.glm)
+
+
+# page 256
+
+drop1(mva.full.glm, test='Chisq')
+
+
+# page 257
+# 3부터 7까지 책에는 생략되어 있음
+
+mva.tmp.glm <- update(mva.full.glm, .~. - cad_flg)
+
+drop1(mva.tmp.glm, test='Chisq')
+
+# 2
+mva.tmp.glm2 <- update(mva.tmp.glm, .~. - chf_flg)
+drop1(mva.tmp.glm2, test='Chisq')
+
+# 3
+mva.tmp.glm3 <- update(mva.tmp.glm2, .~. - gender_num)
+drop1(mva.tmp.glm3, test='Chisq')
+
+# 4
+mva.tmp.glm4 <- update(mva.tmp.glm3, .~. - copd_flg)
+drop1(mva.tmp.glm4, test='Chisq')
+
+# 5
+mva.tmp.glm5 <- update(mva.tmp.glm4, .~. - liver_flg)
+drop1(mva.tmp.glm5, test='Chisq')
+
+# 6
+mva.tmp.glm6 <- update(mva.tmp.glm5, .~. - cut2(sofa_first, g = 5))
+drop1(mva.tmp.glm6, test='Chisq')
+
+# 7
+mva.tmp.glm7 <- update(mva.tmp.glm6, .~. - renal_flg)
+drop1(mva.tmp.glm7, test='Chisq')
+
+# 8
+mva.tmp.glm8 <- update(mva.tmp.glm7, .~. - service_unit)
+drop1(mva.tmp.glm8, test='Chisq')
+
+
+# page 259
+
+mva.final.glm <- mva.tmp.glm8
+summary(mva.final.glm)
+
+
+
+
