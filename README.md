@@ -1,1 +1,1 @@
-# Secondary_analysis_of_EHR_-Korean-
+# Secondary-analysis-of-EHR-Korean
