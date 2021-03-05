@@ -2,6 +2,7 @@
 
 
 1.  SQL Code
+--SQL query는 mssql 기준으로 수정하여 작성됨
 
 -- 109p
 
